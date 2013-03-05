@@ -4,6 +4,7 @@ import           Control.Applicative as Args
 import           Options.Applicative
 
 import SceneParser
+import Geometry
 
 
 -- * Command line argument parsing
