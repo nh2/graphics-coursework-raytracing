@@ -1,87 +1,112 @@
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-module SceneParser (Scene(Scene), parseScene) where
+{-# LANGUAGE FlexibleContexts #-}
 
-import Text.ParserCombinators.Parsec as P
-import qualified Text.ParserCombinators.Parsec.Token as PT
-import Text.ParserCombinators.Parsec.Language (emptyDef)
-import Data.Vec
-import Control.Applicative
+module SceneParser (
+  Scene (..)
+, Material (..)
+, Camera (..)
+, Sphere (..)
+, parseScene
+-- * Internals
+, parseGroup
+, parseOrthographicCamera
+) where
 
-type GFloat = Double
-type Vec3d = GFloat :. (GFloat :. (GFloat :. ()))
-mkVec3d x y z = x :. y :. z :. ()
-type RGBF = GFloat :. (GFloat :. (GFloat :. ()))
+import           Control.Applicative
+import           Control.Monad
+import           Linear
+import           Text.Parsec
+import           Text.Parsec.String
+import           Text.ParserCombinators.Parsec.Number (sign, decimal, floating2)
 
-data MatColor = MatColor RGBF
-            deriving (Show, Eq)
 
-data Camera = Camera {camCenter :: Vec3d, camDir :: Vec3d,
-                     camUp :: Vec3d, camSize :: GFloat }
-            deriving (Show, Eq)
+type Vec3d = V3 Double
+type RGB   = V3 Double
 
-data Scene = Scene {sceneCam :: Camera, sceneBg :: RGBF,
-                    sceneObjs :: [Sphere]}
-            deriving (Show, Eq)
+newtype Background = Background RGB
+                   deriving (Eq, Show)
 
-data Sphere = Sphere {sphCenter :: Vec3d, shpRadius :: GFloat,
-                      sphMaterial :: MatColor}
-            deriving (Show, Eq)
+data Material = Material { materialColor :: RGB
+                         } deriving (Eq, Show)
 
-parseScene :: String -> Maybe Scene
-parseScene txt
-  =case parse (Scene <$> parseCam <*> parseBG <*> parseGroup) "" txt of
-         Left _ -> Nothing
-         Right s -> Just s
+data Camera = Camera { camCenter :: Vec3d
+                     , camDir    :: Vec3d
+                     , camUp     :: Vec3d
+                     , camSize   :: Double
+                     } deriving (Eq, Show)
 
-sceneFile :: GenParser Char st [[String]]
-sceneFile = undefined
+data Sphere = Sphere { sphereCenter   :: Vec3d
+                     , sphereRadius   :: Double
+                     , sphereMaterial :: Material
+                     } deriving (Eq, Show)
 
-lexer = PT.makeTokenParser emptyDef
-float = (char '-' *> ((negate .regardless) <$> num)) P.<|>
-                       regardless  <$> num
-         where
-          num = PT.naturalOrFloat lexer
-          regardless :: Either Integer Double -> Double
-          regardless (Left x) = fromIntegral x
-          regardless (Right x) = x
+data Scene = Scene { sceneCam  :: Camera
+                   , sceneBg   :: Background
+                   , sceneObjs :: [Sphere]
+                   } deriving (Eq, Show)
 
-parse3dVec = mkVec3d <$> float <*> float <*> float
 
-parseCurly name parseContent
-  = do
-   {spaces ; string name ; spaces ; char '{' ; spaces ;
-    cont <- parseContent; spaces ; char '}'; spaces; return cont}
+parseScene :: FilePath -> String -> Either String Scene
+parseScene filename txt = either (Left . show) Right (parse sceneParser filename txt)
 
-parseCam
-  = parseCurly "OrthographicCamera"  ((Camera)
-  <$> (string "center " *> parse3dVec)
-  <*> (spaces *> string "direction "*> parse3dVec)
-  <*> (spaces *> string "up " *> parse3dVec)
-  <*> (spaces *> string "size " *> float))
 
-parseBG = parseCurly "Background" (string "color " *> parse3dVec)
+float :: Parser Double
+float = sign <*> floating2 True
 
-data GrpItem = Mat MatColor | Obj Sphere
-parseGroup = parseCurly "Group"
-            (do {string "num_objects "; float; spaces;
-             fstMat <- parseMat; parseObjs fstMat})
 
-parseObjs curMat
-  = (do {m <- parseMat; parseObjs m})
-    P.<|>(do {s <- parseSphere curMat; rest <- parseObjs curMat ; return (s : rest)})
-    P.<|> do{ return []}
+ws :: Parser ()
+ws = spaces
 
-parseMat = parseCurly "Material" (string "diffuseColor " *> parse3dVec)
-parseSphere mat = parseCurly "Sphere" (Sphere
-                  <$> (string "center " *> parse3dVec)
-                  <*> (string "radius " *> float))
-                  <*> (pure (MatColor mat))
 
-camSample :: String
-camSample = "OrthographicCamera { \n center 10 5 10 \n direction -1 -0.5 -1 \n up 0 0.5 1 \n size 5}";
-vecSample = "crap { 1.0 2.0 3}"
-bgSample = "Background { \n color 1.2 0.1 0.2 \n }"
+parseVec3 :: Parser (V3 Double)
+parseVec3 = V3 <$> (float <* ws) <*> (float <* ws) <*> float
 
-objSample =  "Group { \n num_objects 5 \n Material { diffuseColor 1 0 0 } \n Sphere { \n center 0 0 0 \n radius 1 \n } \n Material { diffuseColor 0 1 0 } \n Sphere { \ncenter 1 1 1 \n radius 0.75} }"
 
+parseCurly :: String -> Parser a -> Parser a
+parseCurly name parseContent =
+  string name *> ws *> char '{' *> ws *> parseContent <* ws <* char '}'
+
+
+parseOrthographicCamera :: Parser Camera
+parseOrthographicCamera = parseCurly "OrthographicCamera" $
+  Camera <$> (string "center"    *> ws *> parseVec3 <* ws)
+         <*> (string "direction" *> ws *> parseVec3 <* ws)
+         <*> (string "up"        *> ws *> parseVec3 <* ws)
+         <*> (string "size"      *> ws *> float          )
+
+parseBackground :: Parser Background
+parseBackground = parseCurly "Background" $
+  Background <$> (string "color" *> ws *> parseVec3)
+
+
+parseMaterial :: Parser Material
+parseMaterial = parseCurly "Material" $
+  Material <$> (string "diffuseColor" *> ws *> parseVec3)
+
+
+parseSphere :: Material -> Parser Sphere
+parseSphere mat = parseCurly "Sphere" $
+  Sphere <$> (string "center" *> ws *> parseVec3 <* ws)
+         <*> (string "radius" *> ws *> float          )
+         <*> pure mat
+
+
+parseGroup :: Parser [Sphere]
+parseGroup = parseCurly "Group" $ do
+  string "num_objects" >> ws
+  n <- decimal
+  ws
+  spheres <- concat <$> ((`sepEndBy1` ws) $ do
+    mat <- parseMaterial
+    ws
+    parseSphere mat `sepEndBy1` ws)
+
+  when (length spheres /= n) $ fail $
+    "declared 'num_objects " ++ show n ++ "', but got " ++ show (length spheres) ++ " objects"
+
+  return spheres
+
+
+sceneParser :: Parser Scene
+sceneParser = Scene <$> (ws *> parseOrthographicCamera <* ws)
+                    <*> (      parseBackground         <* ws)
+                    <*> (      parseGroup              <* ws)
