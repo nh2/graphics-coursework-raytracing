@@ -18,4 +18,9 @@ class IsCamera c where
 
 -- | How to generate rays for an orthographic camera.
 instance IsCamera OrthographicCamera where
-  generateRay cam (V2 _x _y) = undefined -- TODO implement
+  generateRay OrthographicCamera { center = c, direction, upAxis, size }
+              (V2 x y)
+    = Line { start     = c + (x - 0.5) * size *^ horizAxis + (y - 0.5) * size *^ upAxis
+           , direction = normalize direction }
+    where
+      horizAxis = normalize $ direction `cross` upAxis -- horizontal axis in the camera plane
