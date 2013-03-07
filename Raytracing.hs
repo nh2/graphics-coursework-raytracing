@@ -5,6 +5,7 @@ import           Options.Applicative
 
 import SceneParser
 import Geometry
+import Camera
 
 
 -- * Command line argument parsing
