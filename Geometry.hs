@@ -28,7 +28,17 @@ class Intersect a b where
 
 -- How to intersect lines with spheres.
 instance Intersect Line Sphere where
-  intersect (Line _o _l) (Sphere _c _r _) = undefined -- TODO implement
+  -- From http://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
+  intersect (Line o l) (Sphere c r _) | s < 0      = []
+                                      | nearZero s = [head hits]
+                                      | otherwise  = hits
+    where
+      ds   = (-l `dot` (o - c)) +- sqrt s
+      s    = (l `dot` (o - c))^two - quadrance (o - c) + r^two
+      hits = [ o + d *^ l | d <- ds ]
+
+      two = 2 :: Int
+      a +- b = [a + b, a - b]
 
 
 instance Intersect Sphere Line where
