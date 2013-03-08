@@ -1,10 +1,14 @@
+{-# LANGUAGE NamedFieldPuns, DisambiguateRecordFields #-}
+
+-- | This module describes how to generate rays based on the camera type.
 module Camera where
 
 import Geometry
 import Linear
+import Scene
 
 
-class Camera c where
+class IsCamera c where
   -- | Based on the camera parameters, generate a ray starting at a given
   -- pixel location.
   -- The pixel coordinates should be in the range (0, 0) -> (1, 1) where
@@ -12,13 +16,6 @@ class Camera c where
   generateRay :: c -> V2 Double -> Line
 
 
-data OrthographicCamera = OrthographicCamera {
-  center    :: V3 Double
-, direction :: V3 Double
-, upAxis    :: V3 Double
-, size      :: Double
-} deriving (Eq, Show)
-
-
-instance Camera OrthographicCamera where
-  generateRay _cam (V2 _x _y) = undefined
+-- | How to generate rays for an orthographic camera.
+instance IsCamera OrthographicCamera where
+  generateRay cam (V2 _x _y) = undefined -- TODO implement
