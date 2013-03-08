@@ -64,3 +64,10 @@ main = do
       -- Write image to PPM file
       writePPM output outputSize [ (r,g,b) | V3 r g b <- pixels ]
 
+      -- Calculate depth image
+      let depth = raytraceDepth scene (sx, sy) (near, far)
+          -- Scale depth float into 0-255 range
+          s d   = fromIntegral (min 255 (floor (d * 255)) :: Int)
+
+      -- Write depth image
+      writePPM depthPath outputSize [ (s d, s d, s d) | d <- depth ]

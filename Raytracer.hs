@@ -37,6 +37,30 @@ raytrace Scene { sceneCam = cam
     bgCol = toRGB8 bgColF
 
 
+-- | Ray-traces a scene into a list of greyscale values (1 per pixel).
+raytraceDepth :: Scene -> (Int, Int) -> (Int, Int) -> [Double]
+raytraceDepth Scene { sceneCam = cam
+                    , sceneObjs } (size_x, size_y) (nearDepth, farDepth)
+  = [ trace (generateRay cam coord) | coord <- floatingPixelCoords size_x size_y ]
+  where
+    trace ray@Line { start } = case [ d | obj <- sceneObjs
+                                        , i <- ray `intersect` obj
+                                        , let d = distance start i
+                                        , d < fi farDepth
+                                        ] of
+      [] -> 0.0
+      ds -> clipNear $ minimum ds
+
+    -- Clip everything that is closer than the near plane to 1.0.
+    clipNear :: Double -> Double
+    clipNear x
+      | x < fi nearDepth = 1.0
+      | otherwise       = 1.0 - (x - fi nearDepth) / depthRange
+
+    depthRange = fi $ farDepth - nearDepth
+
+
+
 -- Count down y as camera coordinates start from bottom left.
 floatingPixelCoords :: Int -> Int -> [V2 Double]
 floatingPixelCoords size_x size_y =
