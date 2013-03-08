@@ -28,9 +28,10 @@ raytrace Scene { sceneCam = cam
     fi = fromIntegral
     bgCol = toRGB8 bgColF
 
+    -- Count down y as camera coordinates start from bottom left.
     floatingPixelCoords = [ V2 (fi x / fi size_x)
-                               (fi y / fi size_y) | x <- [0..size_x-1]
-                                                  , y <- [0..size_y-1] ]
+                               (fi y / fi size_y) | y <- [size_y-1, size_y-2 .. 0]
+                                                  , x <- [0..size_x-1] ]
 
     trace ray@Line { start } = case [ (i, obj) | obj <- sceneObjs
                                                , i <- ray `intersect` obj ] of
