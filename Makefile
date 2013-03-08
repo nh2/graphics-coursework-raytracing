@@ -20,4 +20,6 @@ scene4:
 	dist/build/raycast/raycast --input scenes/scene4.txt --size 200 200 --output scene4.ppm --depth 13 16 depth4.ppm
 scene5:
 	dist/build/raycast/raycast --input scenes/scene5.txt --size 300 300 --output scene5.ppm --depth 1 7 depth5.ppm
-allScenes: scene1 scene2 scene3 scene4 scene5
+scene6:
+	dist/build/raycast/raycast --input scenes/scene6.txt --size 200 200 --output scene6.ppm --depth 9 13 depth6.ppm
+allScenes: scene1 scene2 scene3 scene4 scene5 scene6
