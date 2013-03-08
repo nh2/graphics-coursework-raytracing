@@ -23,16 +23,8 @@ raytrace :: Scene -> (Int, Int) -> [RGB8]
 raytrace Scene { sceneCam = cam
                , sceneBg = Background bgColF
                , sceneObjs } (size_x, size_y)
-  = [ trace (generateRay cam coord) | coord <- floatingPixelCoords ]
+  = [ trace (generateRay cam coord) | coord <- floatingPixelCoords size_x size_y ]
   where
-    fi = fromIntegral
-    bgCol = toRGB8 bgColF
-
-    -- Count down y as camera coordinates start from bottom left.
-    floatingPixelCoords = [ V2 (fi x / fi size_x)
-                               (fi y / fi size_y) | y <- [size_y-1, size_y-2 .. 0]
-                                                  , x <- [0..size_x-1] ]
-
     trace ray@Line { start } = case [ (i, obj) | obj <- sceneObjs
                                                , i <- ray `intersect` obj ] of
       [] -> bgCol
@@ -42,3 +34,16 @@ raytrace Scene { sceneCam = cam
 
     colorOf Sphere { sphereMaterial = Material rgb } = toRGB8 rgb
     toRGB8 v = round <$> 255 *^ v
+    bgCol = toRGB8 bgColF
+
+
+-- Count down y as camera coordinates start from bottom left.
+floatingPixelCoords :: Int -> Int -> [V2 Double]
+floatingPixelCoords size_x size_y =
+  [ V2 (fi x / fi size_x)
+       (fi y / fi size_y) | y <- [size_y-1, size_y-2 .. 0]
+                          , x <- [0 .. size_x-1] ]
+
+
+fi :: (Integral a, Num b) => a -> b
+fi = fromIntegral

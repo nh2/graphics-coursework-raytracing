@@ -47,10 +47,13 @@ main = do
   Args { scenePath
        , size = (sx, sy)
        , output
+       , depth = ((near, far), depthPath)
        } <- execParser (info (helper <*> argsParser) fullDesc)
 
   -- Parse scene
   parsedScene <- parseScene scenePath <$> readFile scenePath
+
+  let outputSize = (fromIntegral sx, fromIntegral sy)
 
   case parsedScene of
     Left e      -> putStrLn e -- scene parsing unsuccessful
@@ -59,5 +62,5 @@ main = do
       let pixels = raytrace scene (sx, sy)
 
       -- Write image to PPM file
-      writePPM output (fromIntegral sx, fromIntegral sy) [ (r,g,b) | V3 r g b <- pixels ]
+      writePPM output outputSize [ (r,g,b) | V3 r g b <- pixels ]
 
