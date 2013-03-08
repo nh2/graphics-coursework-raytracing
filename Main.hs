@@ -44,21 +44,20 @@ main :: IO ()
 main = do
 
   -- Parse arguments
-  args <- execParser (info (helper <*> argsParser) fullDesc)
-
-  -- TODO implement
+  Args { scenePath
+       , size = (sx, sy)
+       , output
+       } <- execParser (info (helper <*> argsParser) fullDesc)
 
   -- Parse scene
-  -- parsedScene <- parseScene sceneFileName sceneFileContents
+  parsedScene <- parseScene scenePath <$> readFile scenePath
 
-  -- case parsedScene of
-  --   Left e      -> putStrLn e -- scene parsing unsuccessful
-  --   Right scene -> do
+  case parsedScene of
+    Left e      -> putStrLn e -- scene parsing unsuccessful
+    Right scene -> do
+      -- Raytrace image
+      let pixels = raytrace scene (sx, sy)
 
-  --     -- Raytrace image
-  --     let pixels = raytrace scene (sx, sy)
+      -- Write image to PPM file
+      writePPM output (fromIntegral sx, fromIntegral sy) [ (r,g,b) | V3 r g b <- pixels ]
 
-  --     -- Write image to PPM file
-  --     writePPM output (fromIntegral sx, fromIntegral sy) [ (r,g,b) | V3 r g b <- pixels ]
-
-  return ()
